@@ -2,9 +2,13 @@ let sprite = null;
 let cat = null;
 let hint = '';
 
-const ACCEL = 0.09;
-const FRICTION = 0.96;
-const DEADZONE = 6;
+let baseX = null;
+let baseY = null;
+let gotData = false;
+
+const ACCEL = 0.14;
+const FRICTION = 0.97;
+const DEADZONE = 5;
 
 async function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -13,7 +17,7 @@ async function setup() {
   lockGestures();
   enableSensorTap('Tap to enable motion sensors');
   if (window.isDesktop) showDesktopQr({ label: 'Scan to test on your phone' });
-  hint = window.isDesktop ? 'Drag anywhere or use the arrow keys' : 'Tilt the phone — or drag the cat';
+  hint = window.isDesktop ? 'Drag anywhere or use the arrow keys' : 'Tilt to slide — tap to re-center';
 
   try {
     sprite = await loadImage('pixelartcat.png');
@@ -44,8 +48,16 @@ function windowResized() {
   cat.y = constrain(cat.y, cat.h / 2, height - cat.h / 2);
 }
 
+function userSetupComplete() {
+  gotData = false;
+  baseX = null;
+  baseY = null;
+}
+
 function draw() {
   background(44, 8, 97);
+
+  trackSensorData();
 
   const t = readInput();
   cat.vx = (cat.vx + t.x * ACCEL) * FRICTION;
@@ -59,17 +71,29 @@ function draw() {
 
   if (abs(cat.vx) > 0.3) cat.dir = cat.vx > 0 ? 1 : -1;
 
+  drawTiltGauge();
   drawCat();
   drawHud();
+}
+
+function trackSensorData() {
+  if (!window.sensorsEnabled || gotData) return;
+  if (abs(rotationX) > 0.5 || abs(rotationY) > 0.5 || abs(rotationZ) > 0.5) {
+    gotData = true;
+    baseX = rotationX;
+    baseY = rotationY;
+  }
 }
 
 function readInput() {
   let x = 0;
   let y = 0;
 
-  if (window.sensorsEnabled) {
-    if (abs(rotationY) > DEADZONE) x += rotationY / 40;
-    if (abs(rotationX) > DEADZONE) y += rotationX / 40;
+  if (baseX !== null) {
+    const dx = rotationY - baseY;
+    const dy = normDeg(rotationX - baseX);
+    if (abs(dx) > DEADZONE) x += dx / 25;
+    if (abs(dy) > DEADZONE) y += dy / 25;
   }
 
   if (keyIsDown(LEFT_ARROW)) x -= 1;
@@ -78,11 +102,15 @@ function readInput() {
   if (keyIsDown(DOWN_ARROW)) y += 1;
 
   if (mouseIsPressed) {
-    x += (mouseX - pmouseX) / 12;
-    y += (mouseY - pmouseY) / 12;
+    x += (mouseX - pmouseX) / 25;
+    y += (mouseY - pmouseY) / 25;
   }
 
-  return { x: constrain(x, -3, 3), y: constrain(y, -3, 3) };
+  return { x: constrain(x, -2.5, 2.5), y: constrain(y, -2.5, 2.5) };
+}
+
+function normDeg(d) {
+  return ((d + 180) % 360 + 360) % 360 - 180;
 }
 
 function stopAtWalls() {
@@ -102,6 +130,24 @@ function stopAtWalls() {
     cat.y = height - hh;
     cat.vy = 0;
   }
+}
+
+function drawTiltGauge() {
+  if (baseX === null) return;
+  const dx = constrain(rotationY - baseY, -45, 45);
+  const dy = constrain(normDeg(rotationX - baseX), -45, 45);
+  const cx = width / 2;
+  const cy = height / 2;
+
+  stroke(0, 0, 75, 50);
+  strokeWeight(1);
+  noFill();
+  circle(cx, cy, 90);
+
+  stroke(0, 0, 30, 60);
+  strokeWeight(3);
+  point(cx + (dx / 45) * 45, cy + (dy / 45) * 45);
+  noStroke();
 }
 
 function drawCat() {
@@ -125,17 +171,21 @@ function drawCat() {
 
 function drawHud() {
   noStroke();
-  fill(0, 0, 35);
-  textAlign(LEFT, TOP);
-  textSize(13);
-  if (window.sensorsEnabled) {
-    text(
-      'tilt  X ' + nf(rotationX, 1, 1) + '   Y ' + nf(rotationY, 1, 1) + '   Z ' + nf(rotationZ, 1, 1),
-      14,
-      14
-    );
+  textAlign(CENTER, TOP);
+  textSize(26);
+
+  if (!window.sensorsEnabled) {
+    fill(0, 0, 40);
+    text('tap to enable motion', width / 2, 18);
+  } else if (!gotData) {
+    fill(0, 80, 60);
+    textSize(18);
+    text('waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site', width / 2, 18);
   } else {
-    text('sensors off — tap the overlay, or drag / arrow keys', 14, 14);
+    fill(0, 0, 35);
+    const dx = rotationY - baseY;
+    const dy = normDeg(rotationX - baseX);
+    text('tilt  ' + nf(dx, 1, 1) + '\u00B0  ' + nf(dy, 1, 1) + '\u00B0', width / 2, 18);
   }
 
   fill(0, 0, 55);
@@ -145,5 +195,9 @@ function drawHud() {
 }
 
 function mousePressed() {
+  if (window.sensorsEnabled && gotData) {
+    baseX = rotationX;
+    baseY = rotationY;
+  }
   return false;
 }
