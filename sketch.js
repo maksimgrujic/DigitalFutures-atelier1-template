@@ -5,6 +5,8 @@ let hint = '';
 let baseX = null;
 let baseY = null;
 let gotData = false;
+let rxDeg = 0;
+let ryDeg = 0;
 
 const ACCEL = 0.14;
 const FRICTION = 0.97;
@@ -57,6 +59,8 @@ function userSetupComplete() {
 function draw() {
   background(44, 8, 97);
 
+  rxDeg = degrees(rotationX);
+  ryDeg = degrees(rotationY);
   trackSensorData();
 
   const t = readInput();
@@ -78,10 +82,10 @@ function draw() {
 
 function trackSensorData() {
   if (!window.sensorsEnabled || gotData) return;
-  if (abs(rotationX) > 0.5 || abs(rotationY) > 0.5 || abs(rotationZ) > 0.5) {
+  if (abs(rxDeg) > 0.5 || abs(ryDeg) > 0.5 || abs(degrees(rotationZ)) > 0.5) {
     gotData = true;
-    baseX = rotationX;
-    baseY = rotationY;
+    baseX = rxDeg;
+    baseY = ryDeg;
   }
 }
 
@@ -90,8 +94,8 @@ function readInput() {
   let y = 0;
 
   if (baseX !== null) {
-    const dx = rotationY - baseY;
-    const dy = normDeg(rotationX - baseX);
+    const dx = ryDeg - baseY;
+    const dy = normDeg(rxDeg - baseX);
     if (abs(dx) > DEADZONE) x += dx / 25;
     if (abs(dy) > DEADZONE) y += dy / 25;
   }
@@ -134,8 +138,8 @@ function stopAtWalls() {
 
 function drawTiltGauge() {
   if (baseX === null) return;
-  const dx = constrain(rotationY - baseY, -45, 45);
-  const dy = constrain(normDeg(rotationX - baseX), -45, 45);
+  const dx = constrain(ryDeg - baseY, -45, 45);
+  const dy = constrain(normDeg(rxDeg - baseX), -45, 45);
   const cx = width / 2;
   const cy = height / 2;
 
@@ -183,8 +187,8 @@ function drawHud() {
     text('waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site', width / 2, 18);
   } else {
     fill(0, 0, 35);
-    const dx = rotationY - baseY;
-    const dy = normDeg(rotationX - baseX);
+    const dx = ryDeg - baseY;
+    const dy = normDeg(rxDeg - baseX);
     text('tilt  ' + nf(dx, 1, 1) + '\u00B0  ' + nf(dy, 1, 1) + '\u00B0', width / 2, 18);
   }
 
@@ -196,8 +200,8 @@ function drawHud() {
 
 function mousePressed() {
   if (window.sensorsEnabled && gotData) {
-    baseX = rotationX;
-    baseY = rotationY;
+    baseX = rxDeg;
+    baseY = ryDeg;
   }
   return false;
 }
