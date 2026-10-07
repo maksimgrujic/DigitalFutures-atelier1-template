@@ -23,6 +23,9 @@ const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the S
 const IDLE_SPRITE = 'Gemini Cat.png';
 const MOTION_SPRITE = 'Gemini Cat (In Motion).png';
 const SQUASH_SPRITE = 'Gemini Cat (Squashed).png';
+const BACKDROP_SPRITE = 'Backdrop Potion.png';
+
+let backdrop = null;
 
 let sprites = { idle: null, motion: null, squash: null };
 let cat = null;
@@ -61,6 +64,7 @@ async function setup() {
   sprites.idle = await loadSprite(IDLE_SPRITE);
   sprites.motion = await loadSprite(MOTION_SPRITE);
   sprites.squash = await loadSprite(SQUASH_SPRITE);
+  backdrop = await loadSprite(BACKDROP_SPRITE);
   makeCat();
   updateHint();
 }
@@ -136,6 +140,7 @@ function draw() {
   noStroke();
   fill(44, 8, 97);
   rect(s.x, s.y, s.w, s.h);
+  if (backdrop) image(backdrop, s.x, s.y, s.w, s.h);
 
   rxDeg = degrees(rotationX);
   ryDeg = degrees(rotationY);
@@ -239,18 +244,18 @@ function drawTiltGauge(s) {
   const cy = s.y + s.h / 2;
   const span = 60;
 
-  stroke(0, 0, 75, 45);
+  stroke(0, 0, 88, 60);
   strokeWeight(1);
   noFill();
   if (axisInUse() === 'Y') {
     line(cx - span, cy, cx + span, cy);
     noStroke();
-    fill(0, 0, 30, 70);
+    fill(0, 0, 95, 85);
     circle(cx + (d / 45) * span, cy, 12);
   } else {
     line(cx, cy - span, cx, cy + span);
     noStroke();
-    fill(0, 0, 30, 70);
+    fill(0, 0, 95, 85);
     circle(cx, cy + (d / 45) * span, 12);
   }
 }
@@ -297,10 +302,10 @@ function drawHud(s) {
   textSize(26);
 
   if (!window.sensorsEnabled) {
-    fill(0, 0, 40);
+    fill(0, 0, 92);
     text('tap to enable motion', s.x + s.w / 2, s.y + 14);
   } else if (!gotData) {
-    fill(0, 80, 60);
+    fill(0, 85, 75);
     textSize(18);
     text(
       'waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site',
@@ -308,14 +313,14 @@ function drawHud(s) {
       s.y + 14
     );
   } else {
-    fill(0, 0, 35);
+    fill(0, 0, 92);
     text('tilt ' + axisInUse() + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', s.x + s.w / 2, s.y + 14);
-    fill(0, 0, 55);
+    fill(0, 0, 78);
     textSize(13);
     text('tap the gauge to flip direction', s.x + s.w / 2, s.y + 50);
   }
 
-  fill(0, 0, 55);
+  fill(0, 0, 85);
   textAlign(CENTER, BOTTOM);
   textSize(14);
   text(hint, s.x + s.w / 2, s.y + s.h - 10);
