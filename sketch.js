@@ -12,8 +12,9 @@ const STOP_SPEED = 0.02;         // below this speed the cat snaps to a full sto
 const WALL_BOUNCE = 0;           // 0 = sticks to the wall, 0.5 = soft bounce, 1 = full bounce
 const DRAG_PUSH = 1 / 25;        // how hard a finger/mouse drag pushes (both axes)
 const KEY_PUSH = 1;              // how hard the arrow keys push
-const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller screen side
+const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller stage side
 const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
+const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 // ======================================================================
 
 let sprite = null;
@@ -25,7 +26,6 @@ let baseY = null;
 let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
-let triedLandscape = false;
 
 async function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -44,25 +44,38 @@ async function setup() {
   updateHint();
 }
 
+function stageRect() {
+  let w = width;
+  let h = width / STAGE_ASPECT;
+  if (h > height) {
+    h = height;
+    w = height * STAGE_ASPECT;
+  }
+  return { x: (width - w) / 2, y: (height - h) / 2, w: w, h: h };
+}
+
 function makeCat() {
-  const s = min(width, height) * SPRITE_SIZE;
+  const s = stageRect();
+  const size = min(s.w, s.h) * SPRITE_SIZE;
   const aspect = sprite ? sprite.height / sprite.width : 1;
   cat = {
-    x: width / 2,
-    y: height / 2,
+    x: s.x + s.w / 2,
+    y: s.y + s.h / 2,
     vx: 0,
     vy: 0,
-    w: s,
-    h: s * aspect,
+    w: size,
+    h: size * aspect,
     dir: 1
   };
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  makeCat();
-  cat.x = constrain(cat.x, cat.w / 2, width - cat.w / 2);
-  cat.y = constrain(cat.y, cat.h / 2, height - cat.h / 2);
+  const s = stageRect();
+  cat.w = min(s.w, s.h) * SPRITE_SIZE;
+  cat.h = cat.w * (sprite ? sprite.height / sprite.width : 1);
+  cat.x = constrain(cat.x, s.x + cat.w / 2, s.x + s.w - cat.w / 2);
+  cat.y = constrain(cat.y, s.y + cat.h / 2, s.y + s.h - cat.h / 2);
   if (gotData) {
     baseX = degrees(rotationX);
     baseY = degrees(rotationY);
@@ -71,9 +84,8 @@ function windowResized() {
 }
 
 function updateHint() {
-  const landscape = width > height;
-  if (!landscape && !window.isDesktop) {
-    hint = 'turn your phone sideways — then tap to re-center';
+  if (width < height && !window.isDesktop) {
+    hint = 'rotate your phone sideways for full screen — tap to re-center';
   } else if (window.isDesktop) {
     hint = 'Drag or use the arrow keys';
   } else {
@@ -85,27 +97,15 @@ function userSetupComplete() {
   gotData = false;
   baseX = null;
   baseY = null;
-  lockLandscape();
-}
-
-function lockLandscape() {
-  if (triedLandscape) return;
-  triedLandscape = true;
-  try {
-    const el = document.documentElement;
-    const p = el.requestFullscreen ? el.requestFullscreen() : null;
-    if (p && p.then) {
-      p.then(function () {
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(function () {});
-        }
-      }).catch(function () {});
-    }
-  } catch (e) {}
 }
 
 function draw() {
-  background(44, 8, 97);
+  background(232, 15, 8);
+
+  const s = stageRect();
+  noStroke();
+  fill(44, 8, 97);
+  rect(s.x, s.y, s.w, s.h);
 
   rxDeg = degrees(rotationX);
   ryDeg = degrees(rotationY);
@@ -119,13 +119,13 @@ function draw() {
 
   cat.x += cat.vx;
   cat.y += cat.vy;
-  stopAtWalls();
+  stopAtWalls(s);
 
   if (abs(cat.vx) > 0.3) cat.dir = cat.vx > 0 ? 1 : -1;
 
-  drawTiltGauge();
+  drawTiltGauge(s);
   drawCat();
-  drawHud();
+  drawHud(s);
 }
 
 function trackSensorData() {
@@ -173,44 +173,45 @@ function normDeg(d) {
   return ((d + 180) % 360 + 360) % 360 - 180;
 }
 
-function stopAtWalls() {
+function stopAtWalls(s) {
   const hw = cat.w / 2;
   const hh = cat.h / 2;
-  if (cat.x < hw) {
-    cat.x = hw;
+  if (cat.x < s.x + hw) {
+    cat.x = s.x + hw;
     cat.vx = -cat.vx * WALL_BOUNCE;
-  } else if (cat.x > width - hw) {
-    cat.x = width - hw;
+  } else if (cat.x > s.x + s.w - hw) {
+    cat.x = s.x + s.w - hw;
     cat.vx = -cat.vx * WALL_BOUNCE;
   }
-  if (cat.y < hh) {
-    cat.y = hh;
+  if (cat.y < s.y + hh) {
+    cat.y = s.y + hh;
     cat.vy = -cat.vy * WALL_BOUNCE;
-  } else if (cat.y > height - hh) {
-    cat.y = height - hh;
+  } else if (cat.y > s.y + s.h - hh) {
+    cat.y = s.y + s.h - hh;
     cat.vy = -cat.vy * WALL_BOUNCE;
   }
 }
 
-function drawTiltGauge() {
+function drawTiltGauge(s) {
   if (baseX === null) return;
   const d = constrain(tiltDelta(), -45, 45);
+  const cx = s.x + s.w / 2;
+  const cy = s.y + s.h / 2;
+  const span = 60;
 
   stroke(0, 0, 75, 45);
   strokeWeight(1);
   noFill();
   if (TILT_AXIS === 'Y') {
-    const span = 60;
-    line(width / 2 - span, height / 2, width / 2 + span, height / 2);
+    line(cx - span, cy, cx + span, cy);
     noStroke();
     fill(0, 0, 30, 70);
-    circle(width / 2 + (d / 45) * span, height / 2, 12);
+    circle(cx + (d / 45) * span, cy, 12);
   } else {
-    const span = 60;
-    line(width / 2, height / 2 - span, width / 2, height / 2 + span);
+    line(cx, cy - span, cx, cy + span);
     noStroke();
     fill(0, 0, 30, 70);
-    circle(width / 2, height / 2 + (d / 45) * span, 12);
+    circle(cx, cy + (d / 45) * span, 12);
   }
 }
 
@@ -233,27 +234,31 @@ function drawCat() {
   pop();
 }
 
-function drawHud() {
+function drawHud(s) {
   noStroke();
   textAlign(CENTER, TOP);
   textSize(26);
 
   if (!window.sensorsEnabled) {
     fill(0, 0, 40);
-    text('tap to enable motion', width / 2, 18);
+    text('tap to enable motion', s.x + s.w / 2, s.y + 14);
   } else if (!gotData) {
     fill(0, 80, 60);
     textSize(18);
-    text('waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site', width / 2, 18);
+    text(
+      'waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site',
+      s.x + s.w / 2,
+      s.y + 14
+    );
   } else {
     fill(0, 0, 35);
-    text('tilt ' + TILT_AXIS + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', width / 2, 18);
+    text('tilt ' + TILT_AXIS + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', s.x + s.w / 2, s.y + 14);
   }
 
   fill(0, 0, 55);
   textAlign(CENTER, BOTTOM);
   textSize(14);
-  text(hint, width / 2, height - 16);
+  text(hint, s.x + s.w / 2, s.y + s.h - 10);
 }
 
 function mousePressed() {
@@ -261,6 +266,5 @@ function mousePressed() {
     baseX = rxDeg;
     baseY = ryDeg;
   }
-  lockLandscape();
   return false;
 }
