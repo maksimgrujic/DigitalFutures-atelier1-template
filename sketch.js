@@ -1,6 +1,8 @@
 // ======================================================================
 //  TUNE THE FEEL HERE
 // ======================================================================
+const TILT_AXIS = 'Y';           // 'Y' = across the phone's long axis (landscape: slides
+                                 //       the cat left/right), 'X' = across the short axis
 const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
 const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
@@ -10,7 +12,6 @@ const STOP_SPEED = 0.02;         // below this speed the cat snaps to a full sto
 const WALL_BOUNCE = 0;           // 0 = sticks to the wall, 0.5 = soft bounce, 1 = full bounce
 const DRAG_PUSH = 1 / 25;        // how hard a finger/mouse drag pushes (both axes)
 const KEY_PUSH = 1;              // how hard the arrow keys push
-const TILT_X_ONLY = true;        // true = tilt only slides the cat left/right
 const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller screen side
 const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
 // ======================================================================
@@ -24,6 +25,7 @@ let baseY = null;
 let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
+let triedLandscape = false;
 
 async function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -32,7 +34,6 @@ async function setup() {
   lockGestures();
   enableSensorTap('Tap to enable motion sensors');
   if (window.isDesktop) showDesktopQr({ label: 'Scan to test on your phone' });
-  hint = window.isDesktop ? 'Drag or use the arrow keys' : 'Tilt sideways to slide — tap to re-center';
 
   try {
     sprite = await loadImage('pixelartcat.png');
@@ -40,6 +41,7 @@ async function setup() {
     sprite = null;
   }
   makeCat();
+  updateHint();
 }
 
 function makeCat() {
@@ -61,12 +63,45 @@ function windowResized() {
   makeCat();
   cat.x = constrain(cat.x, cat.w / 2, width - cat.w / 2);
   cat.y = constrain(cat.y, cat.h / 2, height - cat.h / 2);
+  if (gotData) {
+    baseX = degrees(rotationX);
+    baseY = degrees(rotationY);
+  }
+  updateHint();
+}
+
+function updateHint() {
+  const landscape = width > height;
+  if (!landscape && !window.isDesktop) {
+    hint = 'turn your phone sideways — then tap to re-center';
+  } else if (window.isDesktop) {
+    hint = 'Drag or use the arrow keys';
+  } else {
+    hint = 'tilt to slide — tap to re-center';
+  }
 }
 
 function userSetupComplete() {
   gotData = false;
   baseX = null;
   baseY = null;
+  lockLandscape();
+}
+
+function lockLandscape() {
+  if (triedLandscape) return;
+  triedLandscape = true;
+  try {
+    const el = document.documentElement;
+    const p = el.requestFullscreen ? el.requestFullscreen() : null;
+    if (p && p.then) {
+      p.then(function () {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(function () {});
+        }
+      }).catch(function () {});
+    }
+  } catch (e) {}
 }
 
 function draw() {
@@ -102,15 +137,23 @@ function trackSensorData() {
   }
 }
 
+// Delta, in degrees, from the neutral pose on the selected phone axis.
+// Phone Y axis (long edge) is driven by tipping about X -> p5 rotationX (beta).
+// Phone X axis (short edge) is driven by tipping about Y -> p5 rotationY (gamma).
+function tiltDelta() {
+  if (baseX === null) return 0;
+  return TILT_AXIS === 'Y' ? normDeg(rxDeg - baseX) : normDeg(ryDeg - baseY);
+}
+
 function readInput() {
   let x = 0;
   let y = 0;
 
-  if (baseX !== null) {
-    const dx = ryDeg - baseY;
-    const dy = normDeg(rxDeg - baseX);
-    if (abs(dx) > TILT_DEADZONE) x += dx * TILT_SENSITIVITY;
-    if (!TILT_X_ONLY && abs(dy) > TILT_DEADZONE) y += dy * TILT_SENSITIVITY;
+  const d = tiltDelta();
+  if (abs(d) > TILT_DEADZONE) {
+    const push = d * TILT_SENSITIVITY;
+    if (TILT_AXIS === 'Y') x += push;
+    else y += push;
   }
 
   if (keyIsDown(LEFT_ARROW)) x -= KEY_PUSH;
@@ -151,17 +194,24 @@ function stopAtWalls() {
 
 function drawTiltGauge() {
   if (baseX === null) return;
-  const dx = constrain(ryDeg - baseY, -45, 45);
-  const cy = height / 2;
-  const span = 60;
+  const d = constrain(tiltDelta(), -45, 45);
 
   stroke(0, 0, 75, 45);
   strokeWeight(1);
-  line(width / 2 - span, cy, width / 2 + span, cy);
-
-  noStroke();
-  fill(0, 0, 30, 70);
-  circle(width / 2 + (dx / 45) * span, cy, 12);
+  noFill();
+  if (TILT_AXIS === 'Y') {
+    const span = 60;
+    line(width / 2 - span, height / 2, width / 2 + span, height / 2);
+    noStroke();
+    fill(0, 0, 30, 70);
+    circle(width / 2 + (d / 45) * span, height / 2, 12);
+  } else {
+    const span = 60;
+    line(width / 2, height / 2 - span, width / 2, height / 2 + span);
+    noStroke();
+    fill(0, 0, 30, 70);
+    circle(width / 2, height / 2 + (d / 45) * span, 12);
+  }
 }
 
 function drawCat() {
@@ -197,7 +247,7 @@ function drawHud() {
     text('waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site', width / 2, 18);
   } else {
     fill(0, 0, 35);
-    text('tilt  ' + nf(ryDeg - baseY, 1, 1) + '\u00B0', width / 2, 18);
+    text('tilt ' + TILT_AXIS + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', width / 2, 18);
   }
 
   fill(0, 0, 55);
@@ -211,5 +261,6 @@ function mousePressed() {
     baseX = rxDeg;
     baseY = ryDeg;
   }
+  lockLandscape();
   return false;
 }
