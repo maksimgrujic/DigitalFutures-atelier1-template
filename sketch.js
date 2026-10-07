@@ -5,7 +5,7 @@ const TILT_AXIS = 'auto';        // 'auto' = measure across whichever phone axis
                                  //       horizontal on screen, or force 'Y' / 'X'
 const TILT_DIRECTION_Y = -1;     // starting direction in landscape (phone Y axis)
 const TILT_DIRECTION_X = 1;      // starting direction in portrait (phone X axis)
-const DIR_VERSION = 2;           // bump this whenever the two defaults above change,
+const DIR_VERSION = 3;           // bump this whenever the two defaults above change,
                                  // so stale saved flips from older builds are ignored
 const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
@@ -21,7 +21,7 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-10-07-a'; // shown top-left; bump on every deploy so we can see
+const BUILD_TAG = '2026-10-07-b'; // shown top-left; bump on every deploy so we can see
                                   // exactly which build a phone is running (matches index.html ?v=)
 // ======================================================================
 
@@ -310,6 +310,10 @@ function drawCat() {
   pop();
 }
 
+function flipButtonRect(s) {
+  return { x: s.x + s.w - 106, y: s.y + 8, w: 98, h: 30 };
+}
+
 function drawHud(s) {
   noStroke();
   textAlign(CENTER, TOP);
@@ -347,7 +351,16 @@ function drawHud(s) {
       s.x + s.w / 2,
       s.y + 56
     );
-    text('tap the gauge to flip direction', s.x + s.w / 2, s.y + 74);
+    text('tap FLIP (top right) to reverse direction', s.x + s.w / 2, s.y + 74);
+
+    const b = flipButtonRect(s);
+    fill(0, 0, 20, 60);
+    rect(b.x, b.y, b.w, b.h, 8);
+    fill(0, 0, 95);
+    textAlign(CENTER, CENTER);
+    textSize(13);
+    text('flip dir \u21C4', b.x + b.w / 2, b.y + b.h / 2);
+    textAlign(CENTER, TOP);
   }
 
   fill(0, 0, 85);
@@ -359,9 +372,8 @@ function drawHud(s) {
 function mousePressed() {
   if (window.sensorsEnabled && gotData) {
     const s = stageRect();
-    const cx = s.x + s.w / 2;
-    const cy = s.y + s.h / 2;
-    if (abs(mouseX - cx) < 95 && abs(mouseY - cy) < 55) {
+    const b = flipButtonRect(s);
+    if (mouseX >= b.x && mouseX <= b.x + b.w && mouseY >= b.y && mouseY <= b.y + b.h) {
       flipTiltDir();
       return false;
     }
