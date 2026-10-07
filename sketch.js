@@ -1,9 +1,9 @@
 // ======================================================================
 //  TUNE THE FEEL HERE
 // ======================================================================
-const TILT_AXIS = 'Y';           // 'Y' = across the phone's long axis (landscape: slides
-                                 //       the cat left/right), 'X' = across the short axis
-const TILT_DIRECTION = -1;       // 1 = normal, -1 = reversed left/right (and up/down)
+const TILT_AXIS = 'auto';        // 'auto' = measure across whichever phone axis is
+                                 //       horizontal on screen, or force 'Y' / 'X'
+const TILT_DIRECTION = -1;       // starting direction: 1 normal, -1 reversed
 const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
 const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
@@ -33,6 +33,22 @@ let baseY = null;
 let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
+let tiltDir = readTiltDir();
+
+function readTiltDir() {
+  try {
+    const v = localStorage.getItem('catTiltDir');
+    if (v === '1' || v === '-1') return Number(v);
+  } catch (e) {}
+  return TILT_DIRECTION;
+}
+
+function flipTiltDir() {
+  tiltDir = -tiltDir;
+  try {
+    localStorage.setItem('catTiltDir', String(tiltDir));
+  } catch (e) {}
+}
 
 async function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -151,12 +167,17 @@ function trackSensorData() {
   }
 }
 
-// Delta, in degrees, from the neutral pose on the selected phone axis.
-// Phone Y axis (long edge) is driven by tipping about X -> p5 rotationX (beta).
-// Phone X axis (short edge) is driven by tipping about Y -> p5 rotationY (gamma).
+// Landscape: the phone's long (Y) axis lies horizontal on screen.
+// Portrait: the phone's short (X) axis lies horizontal on screen.
+function axisInUse() {
+  if (TILT_AXIS === 'Y' || TILT_AXIS === 'X') return TILT_AXIS;
+  return width > height ? 'Y' : 'X';
+}
+
+// Delta, in degrees, from the neutral pose = gravity along the screen's horizontal axis.
 function tiltDelta() {
   if (baseX === null) return 0;
-  return TILT_AXIS === 'Y' ? normDeg(rxDeg - baseX) : normDeg(ryDeg - baseY);
+  return axisInUse() === 'Y' ? normDeg(rxDeg - baseX) : normDeg(ryDeg - baseY);
 }
 
 function readInput() {
@@ -165,8 +186,8 @@ function readInput() {
 
   const d = tiltDelta();
   if (abs(d) > TILT_DEADZONE) {
-    const push = d * TILT_SENSITIVITY * TILT_DIRECTION;
-    if (TILT_AXIS === 'Y') x += push;
+    const push = d * TILT_SENSITIVITY * tiltDir;
+    if (axisInUse() === 'Y') x += push;
     else y += push;
   }
 
@@ -213,7 +234,7 @@ function stopAtWalls(s) {
 
 function drawTiltGauge(s) {
   if (baseX === null) return;
-  const d = constrain(tiltDelta() * TILT_DIRECTION, -45, 45);
+  const d = constrain(tiltDelta() * tiltDir, -45, 45);
   const cx = s.x + s.w / 2;
   const cy = s.y + s.h / 2;
   const span = 60;
@@ -221,7 +242,7 @@ function drawTiltGauge(s) {
   stroke(0, 0, 75, 45);
   strokeWeight(1);
   noFill();
-  if (TILT_AXIS === 'Y') {
+  if (axisInUse() === 'Y') {
     line(cx - span, cy, cx + span, cy);
     noStroke();
     fill(0, 0, 30, 70);
@@ -288,7 +309,10 @@ function drawHud(s) {
     );
   } else {
     fill(0, 0, 35);
-    text('tilt ' + TILT_AXIS + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', s.x + s.w / 2, s.y + 14);
+    text('tilt ' + axisInUse() + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', s.x + s.w / 2, s.y + 14);
+    fill(0, 0, 55);
+    textSize(13);
+    text('tap the gauge to flip direction', s.x + s.w / 2, s.y + 50);
   }
 
   fill(0, 0, 55);
@@ -299,6 +323,13 @@ function drawHud(s) {
 
 function mousePressed() {
   if (window.sensorsEnabled && gotData) {
+    const s = stageRect();
+    const cx = s.x + s.w / 2;
+    const cy = s.y + s.h / 2;
+    if (abs(mouseX - cx) < 95 && abs(mouseY - cy) < 55) {
+      flipTiltDir();
+      return false;
+    }
     baseX = rxDeg;
     baseY = ryDeg;
   }
