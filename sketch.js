@@ -15,9 +15,15 @@ const KEY_PUSH = 1;              // how hard the arrow keys push
 const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller stage side
 const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
+const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
+const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
 // ======================================================================
 
-let sprite = null;
+const IDLE_SPRITE = 'Gemini Cat.png';
+const MOTION_SPRITE = 'Gemini Cat (In Motion).png';
+const SQUASH_SPRITE = 'Gemini Cat (Squashed).png';
+
+let sprites = { idle: null, motion: null, squash: null };
 let cat = null;
 let hint = '';
 
@@ -35,13 +41,19 @@ async function setup() {
   enableSensorTap('Tap to enable motion sensors');
   if (window.isDesktop) showDesktopQr({ label: 'Scan to test on your phone' });
 
-  try {
-    sprite = await loadImage('pixelartcat.png');
-  } catch (e) {
-    sprite = null;
-  }
+  sprites.idle = await loadSprite(IDLE_SPRITE);
+  sprites.motion = await loadSprite(MOTION_SPRITE);
+  sprites.squash = await loadSprite(SQUASH_SPRITE);
   makeCat();
   updateHint();
+}
+
+async function loadSprite(name) {
+  try {
+    return await loadImage(encodeURI(name));
+  } catch (e) {
+    return null;
+  }
 }
 
 function stageRect() {
@@ -57,7 +69,7 @@ function stageRect() {
 function makeCat() {
   const s = stageRect();
   const size = min(s.w, s.h) * SPRITE_SIZE;
-  const aspect = sprite ? sprite.height / sprite.width : 1;
+  const aspect = sprites.idle ? sprites.idle.height / sprites.idle.width : 1;
   cat = {
     x: s.x + s.w / 2,
     y: s.y + s.h / 2,
@@ -65,7 +77,8 @@ function makeCat() {
     vy: 0,
     w: size,
     h: size * aspect,
-    dir: 1
+    dir: 1,
+    touchWall: null
   };
 }
 
@@ -73,7 +86,7 @@ function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   const s = stageRect();
   cat.w = min(s.w, s.h) * SPRITE_SIZE;
-  cat.h = cat.w * (sprite ? sprite.height / sprite.width : 1);
+  cat.h = cat.w * (sprites.idle ? sprites.idle.height / sprites.idle.width : 1);
   cat.x = constrain(cat.x, s.x + cat.w / 2, s.x + s.w - cat.w / 2);
   cat.y = constrain(cat.y, s.y + cat.h / 2, s.y + s.h - cat.h / 2);
   if (gotData) {
@@ -176,19 +189,24 @@ function normDeg(d) {
 function stopAtWalls(s) {
   const hw = cat.w / 2;
   const hh = cat.h / 2;
+  cat.touchWall = null;
   if (cat.x < s.x + hw) {
     cat.x = s.x + hw;
     cat.vx = -cat.vx * WALL_BOUNCE;
+    cat.touchWall = 'left';
   } else if (cat.x > s.x + s.w - hw) {
     cat.x = s.x + s.w - hw;
     cat.vx = -cat.vx * WALL_BOUNCE;
+    cat.touchWall = 'right';
   }
   if (cat.y < s.y + hh) {
     cat.y = s.y + hh;
     cat.vy = -cat.vy * WALL_BOUNCE;
+    cat.touchWall = 'top';
   } else if (cat.y > s.y + s.h - hh) {
     cat.y = s.y + s.h - hh;
     cat.vy = -cat.vy * WALL_BOUNCE;
+    cat.touchWall = 'bottom';
   }
 }
 
@@ -215,6 +233,22 @@ function drawTiltGauge(s) {
   }
 }
 
+function catSpeed() {
+  return sqrt(cat.vx * cat.vx + cat.vy * cat.vy);
+}
+
+// Squashed while pressed against a wall, In Motion past the speed threshold, else idle.
+function currentSprite() {
+  const v = catSpeed();
+  if (cat.touchWall && v <= WALL_TOUCH_SPEED) {
+    return sprites.squash || sprites.idle;
+  }
+  if (v > MOTION_THRESHOLD) {
+    return sprites.motion || sprites.idle;
+  }
+  return sprites.idle;
+}
+
 function drawCat() {
   push();
   translate(cat.x, cat.y);
@@ -224,9 +258,10 @@ function drawCat() {
   fill(44, 10, 82, 45);
   ellipse(0, cat.h * 0.5, cat.w * 0.85, cat.h * 0.2);
 
-  if (sprite) {
+  const img = currentSprite();
+  if (img) {
     scale(cat.dir, 1);
-    image(sprite, -cat.w / 2, -cat.h / 2, cat.w, cat.h);
+    image(img, -cat.w / 2, -cat.h / 2, cat.w, cat.h);
   } else {
     fill(0, 0, 15);
     ellipse(0, 0, cat.w * 0.8, cat.h * 0.8);
