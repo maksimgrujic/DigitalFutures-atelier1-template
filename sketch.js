@@ -3,8 +3,10 @@
 // ======================================================================
 const TILT_AXIS = 'auto';        // 'auto' = measure across whichever phone axis is
                                  //       horizontal on screen, or force 'Y' / 'X'
-const TILT_DIRECTION_Y = 1;      // starting direction in landscape (phone Y axis)
+const TILT_DIRECTION_Y = -1;     // starting direction in landscape (phone Y axis)
 const TILT_DIRECTION_X = 1;      // starting direction in portrait (phone X axis)
+const DIR_VERSION = 2;           // bump this whenever the two defaults above change,
+                                 // so stale saved flips from older builds are ignored
 const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
 const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
@@ -37,23 +39,28 @@ let baseY = null;
 let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
-// One direction setting per measured axis, persisted so a tap on the gauge sticks.
+// One direction setting per measured axis. A saved flip is only honoured if it
+// was saved at the current DIR_VERSION — old builds can't haunt the new one.
 let tiltDirs = { Y: TILT_DIRECTION_Y, X: TILT_DIRECTION_X };
 
 function loadTiltDirs() {
-  for (const axis of ['Y', 'X']) {
-    try {
-      const v = localStorage.getItem('catTiltDir' + axis);
-      if (v === '1' || v === '-1') tiltDirs[axis] = Number(v);
-    } catch (e) {}
-  }
+  try {
+    const s = JSON.parse(localStorage.getItem('catTiltDir'));
+    if (s && s.v === DIR_VERSION) {
+      if (s.Y === 1 || s.Y === -1) tiltDirs.Y = s.Y;
+      if (s.X === 1 || s.X === -1) tiltDirs.X = s.X;
+    }
+  } catch (e) {}
 }
 
 function flipTiltDir() {
   const axis = axisInUse();
   tiltDirs[axis] = -tiltDirs[axis];
   try {
-    localStorage.setItem('catTiltDir' + axis, String(tiltDirs[axis]));
+    localStorage.setItem(
+      'catTiltDir',
+      JSON.stringify({ v: DIR_VERSION, Y: tiltDirs.Y, X: tiltDirs.X })
+    );
   } catch (e) {}
 }
 
