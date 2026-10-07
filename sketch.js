@@ -3,7 +3,8 @@
 // ======================================================================
 const TILT_AXIS = 'auto';        // 'auto' = measure across whichever phone axis is
                                  //       horizontal on screen, or force 'Y' / 'X'
-const TILT_DIRECTION = -1;       // starting direction: 1 normal, -1 reversed
+const TILT_DIRECTION_Y = 1;      // starting direction in landscape (phone Y axis)
+const TILT_DIRECTION_X = 1;      // starting direction in portrait (phone X axis)
 const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
 const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
@@ -11,8 +12,8 @@ const ACCELERATION = 0.16;       // how fast push becomes speed (bigger = more i
 const FRICTION = 0.97;           // 0.8 = stops fast / sticky floor, 0.99 = slippery ice
 const STOP_SPEED = 0.02;         // below this speed the cat snaps to a full stop
 const WALL_BOUNCE = 0;           // 0 = sticks to the wall, 0.5 = soft bounce, 1 = full bounce
-const DRAG_PUSH = 1 / 25;        // how hard a finger/mouse drag pushes (both axes)
 const KEY_PUSH = 1;              // how hard the arrow keys push
+const START_GAP = 12;            // px above the floor where the cat spawns
 const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller stage side
 const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
@@ -36,22 +37,31 @@ let baseY = null;
 let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
-let tiltDir = readTiltDir();
+// One direction setting per measured axis, persisted so a tap on the gauge sticks.
+let tiltDirs = { Y: TILT_DIRECTION_Y, X: TILT_DIRECTION_X };
 
-function readTiltDir() {
-  try {
-    const v = localStorage.getItem('catTiltDir');
-    if (v === '1' || v === '-1') return Number(v);
-  } catch (e) {}
-  return TILT_DIRECTION;
+function loadTiltDirs() {
+  for (const axis of ['Y', 'X']) {
+    try {
+      const v = localStorage.getItem('catTiltDir' + axis);
+      if (v === '1' || v === '-1') tiltDirs[axis] = Number(v);
+    } catch (e) {}
+  }
 }
 
 function flipTiltDir() {
-  tiltDir = -tiltDir;
+  const axis = axisInUse();
+  tiltDirs[axis] = -tiltDirs[axis];
   try {
-    localStorage.setItem('catTiltDir', String(tiltDir));
+    localStorage.setItem('catTiltDir' + axis, String(tiltDirs[axis]));
   } catch (e) {}
 }
+
+function tiltDir() {
+  return tiltDirs[axisInUse()];
+}
+
+loadTiltDirs();
 
 async function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -93,7 +103,7 @@ function makeCat() {
   const aspect = sprites.idle ? sprites.idle.height / sprites.idle.width : 1;
   cat = {
     x: s.x + s.w / 2,
-    y: s.y + s.h / 2,
+    y: s.y + s.h - (size * aspect) / 2 - START_GAP,
     vx: 0,
     vy: 0,
     w: size,
@@ -121,7 +131,7 @@ function updateHint() {
   if (width < height && !window.isDesktop) {
     hint = 'rotate your phone sideways for full screen — tap to re-center';
   } else if (window.isDesktop) {
-    hint = 'Drag or use the arrow keys';
+    hint = 'use the arrow keys';
   } else {
     hint = 'tilt to slide — tap to re-center';
   }
@@ -191,7 +201,7 @@ function readInput() {
 
   const d = tiltDelta();
   if (abs(d) > TILT_DEADZONE) {
-    const push = d * TILT_SENSITIVITY * tiltDir;
+    const push = d * TILT_SENSITIVITY * tiltDir();
     if (axisInUse() === 'Y') x += push;
     else y += push;
   }
@@ -200,11 +210,6 @@ function readInput() {
   if (keyIsDown(RIGHT_ARROW)) x += KEY_PUSH;
   if (keyIsDown(UP_ARROW)) y -= KEY_PUSH;
   if (keyIsDown(DOWN_ARROW)) y += KEY_PUSH;
-
-  if (mouseIsPressed) {
-    x += (mouseX - pmouseX) * DRAG_PUSH;
-    y += (mouseY - pmouseY) * DRAG_PUSH;
-  }
 
   return { x: constrain(x, -MAX_FORCE, MAX_FORCE), y: constrain(y, -MAX_FORCE, MAX_FORCE) };
 }
@@ -239,7 +244,7 @@ function stopAtWalls(s) {
 
 function drawTiltGauge(s) {
   if (baseX === null) return;
-  const d = constrain(tiltDelta() * tiltDir, -45, 45);
+  const d = constrain(tiltDelta() * tiltDir(), -45, 45);
   const cx = s.x + s.w / 2;
   const cy = s.y + s.h / 2;
   const span = 60;
@@ -314,7 +319,12 @@ function drawHud(s) {
     );
   } else {
     fill(0, 0, 92);
-    text('tilt ' + axisInUse() + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0', s.x + s.w / 2, s.y + 14);
+    text(
+      'tilt ' + axisInUse() + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0' +
+        '   dir ' + (tiltDir() > 0 ? '\u2192' : '\u2190'),
+      s.x + s.w / 2,
+      s.y + 14
+    );
     fill(0, 0, 78);
     textSize(13);
     text('tap the gauge to flip direction', s.x + s.w / 2, s.y + 50);
