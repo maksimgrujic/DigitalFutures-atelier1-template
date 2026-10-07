@@ -1,3 +1,20 @@
+// ======================================================================
+//  TUNE THE FEEL HERE
+// ======================================================================
+const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
+const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
+const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
+const ACCELERATION = 0.16;       // how fast push becomes speed (bigger = more instant)
+const FRICTION = 0.97;           // 0.8 = stops fast / sticky floor, 0.99 = slippery ice
+const STOP_SPEED = 0.02;         // below this speed the cat snaps to a full stop
+const WALL_BOUNCE = 0;           // 0 = sticks to the wall, 0.5 = soft bounce, 1 = full bounce
+const DRAG_PUSH = 1 / 25;        // how hard a finger/mouse drag pushes (both axes)
+const KEY_PUSH = 1;              // how hard the arrow keys push
+const TILT_X_ONLY = true;        // true = tilt only slides the cat left/right
+const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller screen side
+const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
+// ======================================================================
+
 let sprite = null;
 let cat = null;
 let hint = '';
@@ -8,10 +25,6 @@ let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
 
-const ACCEL = 0.14;
-const FRICTION = 0.97;
-const DEADZONE = 5;
-
 async function setup() {
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
@@ -19,7 +32,7 @@ async function setup() {
   lockGestures();
   enableSensorTap('Tap to enable motion sensors');
   if (window.isDesktop) showDesktopQr({ label: 'Scan to test on your phone' });
-  hint = window.isDesktop ? 'Drag anywhere or use the arrow keys' : 'Tilt to slide — tap to re-center';
+  hint = window.isDesktop ? 'Drag or use the arrow keys' : 'Tilt sideways to slide — tap to re-center';
 
   try {
     sprite = await loadImage('pixelartcat.png');
@@ -30,7 +43,7 @@ async function setup() {
 }
 
 function makeCat() {
-  const s = min(width, height) * 0.28;
+  const s = min(width, height) * SPRITE_SIZE;
   const aspect = sprite ? sprite.height / sprite.width : 1;
   cat = {
     x: width / 2,
@@ -64,10 +77,10 @@ function draw() {
   trackSensorData();
 
   const t = readInput();
-  cat.vx = (cat.vx + t.x * ACCEL) * FRICTION;
-  cat.vy = (cat.vy + t.y * ACCEL) * FRICTION;
-  if (abs(cat.vx) < 0.02) cat.vx = 0;
-  if (abs(cat.vy) < 0.02) cat.vy = 0;
+  cat.vx = (cat.vx + t.x * ACCELERATION) * FRICTION;
+  cat.vy = (cat.vy + t.y * ACCELERATION) * FRICTION;
+  if (abs(cat.vx) < STOP_SPEED) cat.vx = 0;
+  if (abs(cat.vy) < STOP_SPEED) cat.vy = 0;
 
   cat.x += cat.vx;
   cat.y += cat.vy;
@@ -96,21 +109,21 @@ function readInput() {
   if (baseX !== null) {
     const dx = ryDeg - baseY;
     const dy = normDeg(rxDeg - baseX);
-    if (abs(dx) > DEADZONE) x += dx / 25;
-    if (abs(dy) > DEADZONE) y += dy / 25;
+    if (abs(dx) > TILT_DEADZONE) x += dx * TILT_SENSITIVITY;
+    if (!TILT_X_ONLY && abs(dy) > TILT_DEADZONE) y += dy * TILT_SENSITIVITY;
   }
 
-  if (keyIsDown(LEFT_ARROW)) x -= 1;
-  if (keyIsDown(RIGHT_ARROW)) x += 1;
-  if (keyIsDown(UP_ARROW)) y -= 1;
-  if (keyIsDown(DOWN_ARROW)) y += 1;
+  if (keyIsDown(LEFT_ARROW)) x -= KEY_PUSH;
+  if (keyIsDown(RIGHT_ARROW)) x += KEY_PUSH;
+  if (keyIsDown(UP_ARROW)) y -= KEY_PUSH;
+  if (keyIsDown(DOWN_ARROW)) y += KEY_PUSH;
 
   if (mouseIsPressed) {
-    x += (mouseX - pmouseX) / 25;
-    y += (mouseY - pmouseY) / 25;
+    x += (mouseX - pmouseX) * DRAG_PUSH;
+    y += (mouseY - pmouseY) * DRAG_PUSH;
   }
 
-  return { x: constrain(x, -2.5, 2.5), y: constrain(y, -2.5, 2.5) };
+  return { x: constrain(x, -MAX_FORCE, MAX_FORCE), y: constrain(y, -MAX_FORCE, MAX_FORCE) };
 }
 
 function normDeg(d) {
@@ -122,42 +135,39 @@ function stopAtWalls() {
   const hh = cat.h / 2;
   if (cat.x < hw) {
     cat.x = hw;
-    cat.vx = 0;
+    cat.vx = -cat.vx * WALL_BOUNCE;
   } else if (cat.x > width - hw) {
     cat.x = width - hw;
-    cat.vx = 0;
+    cat.vx = -cat.vx * WALL_BOUNCE;
   }
   if (cat.y < hh) {
     cat.y = hh;
-    cat.vy = 0;
+    cat.vy = -cat.vy * WALL_BOUNCE;
   } else if (cat.y > height - hh) {
     cat.y = height - hh;
-    cat.vy = 0;
+    cat.vy = -cat.vy * WALL_BOUNCE;
   }
 }
 
 function drawTiltGauge() {
   if (baseX === null) return;
   const dx = constrain(ryDeg - baseY, -45, 45);
-  const dy = constrain(normDeg(rxDeg - baseX), -45, 45);
-  const cx = width / 2;
   const cy = height / 2;
+  const span = 60;
 
-  stroke(0, 0, 75, 50);
+  stroke(0, 0, 75, 45);
   strokeWeight(1);
-  noFill();
-  circle(cx, cy, 90);
+  line(width / 2 - span, cy, width / 2 + span, cy);
 
-  stroke(0, 0, 30, 60);
-  strokeWeight(3);
-  point(cx + (dx / 45) * 45, cy + (dy / 45) * 45);
   noStroke();
+  fill(0, 0, 30, 70);
+  circle(width / 2 + (dx / 45) * span, cy, 12);
 }
 
 function drawCat() {
   push();
   translate(cat.x, cat.y);
-  rotate(constrain(cat.vx * 0.015, -0.25, 0.25));
+  rotate(constrain(cat.vx * SPRITE_LEAN, -0.25, 0.25));
 
   noStroke();
   fill(44, 10, 82, 45);
@@ -187,9 +197,7 @@ function drawHud() {
     text('waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site', width / 2, 18);
   } else {
     fill(0, 0, 35);
-    const dx = ryDeg - baseY;
-    const dy = normDeg(rxDeg - baseX);
-    text('tilt  ' + nf(dx, 1, 1) + '\u00B0  ' + nf(dy, 1, 1) + '\u00B0', width / 2, 18);
+    text('tilt  ' + nf(ryDeg - baseY, 1, 1) + '\u00B0', width / 2, 18);
   }
 
   fill(0, 0, 55);
