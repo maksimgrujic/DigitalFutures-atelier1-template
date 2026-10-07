@@ -21,6 +21,8 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
+const BUILD_TAG = '2026-10-07-a'; // shown top-left; bump on every deploy so we can see
+                                  // exactly which build a phone is running (matches index.html ?v=)
 // ======================================================================
 
 const IDLE_SPRITE = 'Gemini Cat.png';
@@ -311,18 +313,22 @@ function drawCat() {
 function drawHud(s) {
   noStroke();
   textAlign(CENTER, TOP);
-  textSize(26);
 
+  fill(0, 0, 70);
+  textSize(11);
+  text('build ' + BUILD_TAG, s.x + s.w / 2, s.y + 6);
+
+  textSize(26);
   if (!window.sensorsEnabled) {
     fill(0, 0, 92);
-    text('tap to enable motion', s.x + s.w / 2, s.y + 14);
+    text('tap to enable motion', s.x + s.w / 2, s.y + 22);
   } else if (!gotData) {
     fill(0, 85, 75);
     textSize(18);
     text(
       'waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site',
       s.x + s.w / 2,
-      s.y + 14
+      s.y + 22
     );
   } else {
     fill(0, 0, 92);
@@ -330,11 +336,18 @@ function drawHud(s) {
       'tilt ' + axisInUse() + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0' +
         '   dir ' + (tiltDir() > 0 ? '\u2192' : '\u2190'),
       s.x + s.w / 2,
-      s.y + 14
+      s.y + 22
     );
-    fill(0, 0, 78);
-    textSize(13);
-    text('tap the gauge to flip direction', s.x + s.w / 2, s.y + 50);
+    fill(0, 0, 75);
+    textSize(12);
+    text(
+      '\u03B2 ' + nf(rxDeg, 1, 1) + '\u00B0   \u03B3 ' + nf(ryDeg, 1, 1) + '\u00B0   ' +
+        (screen.orientation ? screen.orientation.type : 'n/a') +
+        (width > height ? '  landscape' : '  portrait'),
+      s.x + s.w / 2,
+      s.y + 56
+    );
+    text('tap the gauge to flip direction', s.x + s.w / 2, s.y + 74);
   }
 
   fill(0, 0, 85);

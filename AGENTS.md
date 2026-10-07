@@ -4,6 +4,9 @@
 Any change to this sketch gets the full delivery pipeline automatically — do not wait to be asked:
 
 1. Edit the file(s), run `node --check sketch.js` if `sketch.js` changed.
+   - Bump `BUILD_TAG` in `sketch.js` **and** the `?v=` query on the `sketch.js`
+     `<script>` in `index.html` (same value) — that busts the 10-min Pages cache
+     and shows the user which build their phone is running.
 2. Commit and push to `main` (repo style: short imperative sentence).
 3. Wait for the GitHub Pages deploy to finish and verify it:
    `gh run list --repo maksimgrujic/DigitalFutures-atelier1-template --limit 1 --json status,conclusion`
