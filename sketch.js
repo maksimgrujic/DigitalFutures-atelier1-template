@@ -3,6 +3,7 @@
 // ======================================================================
 const TILT_AXIS = 'Y';           // 'Y' = across the phone's long axis (landscape: slides
                                  //       the cat left/right), 'X' = across the short axis
+const TILT_DIRECTION = -1;       // 1 = normal, -1 = reversed left/right (and up/down)
 const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
 const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
@@ -164,7 +165,7 @@ function readInput() {
 
   const d = tiltDelta();
   if (abs(d) > TILT_DEADZONE) {
-    const push = d * TILT_SENSITIVITY;
+    const push = d * TILT_SENSITIVITY * TILT_DIRECTION;
     if (TILT_AXIS === 'Y') x += push;
     else y += push;
   }
@@ -212,7 +213,7 @@ function stopAtWalls(s) {
 
 function drawTiltGauge(s) {
   if (baseX === null) return;
-  const d = constrain(tiltDelta(), -45, 45);
+  const d = constrain(tiltDelta() * TILT_DIRECTION, -45, 45);
   const cx = s.x + s.w / 2;
   const cy = s.y + s.h / 2;
   const span = 60;
