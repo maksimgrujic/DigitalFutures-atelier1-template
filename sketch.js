@@ -21,7 +21,7 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-10-07-b'; // shown top-left; bump on every deploy so we can see
+const BUILD_TAG = '2026-11-11-a'; // shown top-left; bump on every deploy so we can see
                                   // exactly which build a phone is running (matches index.html ?v=)
 // ======================================================================
 
@@ -73,6 +73,7 @@ function tiltDir() {
 loadTiltDirs();
 
 async function setup() {
+  lockLandscape();
   createCanvas(windowWidth, windowHeight);
   colorMode(HSB, 360, 100, 100, 100);
   noSmooth();
@@ -86,6 +87,16 @@ async function setup() {
   backdrop = await loadSprite(BACKDROP_SPRITE);
   makeCat();
   updateHint();
+}
+
+// Simple landscape lock, run automatically at startup. Browsers only honour
+// orientation.lock() while fullscreen, so this can silently no-op.
+function lockLandscape() {
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(function () {});
+    }
+  } catch (e) {}
 }
 
 async function loadSprite(name) {
