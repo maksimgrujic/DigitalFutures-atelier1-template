@@ -21,7 +21,7 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-11-a'; // shown top-left; bump on every deploy so we can see
+const BUILD_TAG = '2026-11-11-b'; // shown top-left; bump on every deploy so we can see
                                   // exactly which build a phone is running (matches index.html ?v=)
 // ======================================================================
 
@@ -89,12 +89,16 @@ async function setup() {
   updateHint();
 }
 
-// Simple landscape lock, run automatically at startup. Browsers only honour
-// orientation.lock() while fullscreen, so this can silently no-op.
-function lockLandscape() {
+// Landscape lock. orientation.lock() only sticks while fullscreen, and Chrome
+// only allows fullscreen from a user gesture — so we try on load, and again
+// after the permission tap and on any tap made while still in portrait.
+async function lockLandscape() {
   try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
     if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock('landscape').catch(function () {});
+      await screen.orientation.lock('landscape');
     }
   } catch (e) {}
 }
@@ -161,6 +165,7 @@ function userSetupComplete() {
   gotData = false;
   baseX = null;
   baseY = null;
+  lockLandscape();
 }
 
 function draw() {
@@ -381,6 +386,7 @@ function drawHud(s) {
 }
 
 function mousePressed() {
+  if (width < height) lockLandscape();
   if (window.sensorsEnabled && gotData) {
     const s = stageRect();
     const b = flipButtonRect(s);
