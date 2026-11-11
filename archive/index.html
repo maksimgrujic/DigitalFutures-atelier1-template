@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build Archive — Gemini Cat</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #141414;
+      color: #eee;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p.sub { color: #888; margin: 0 0 20px; font-size: 13px; }
+    a.card {
+      display: block;
+      text-decoration: none;
+      color: #eee;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+    }
+    a.card:hover { border-color: #ef4806; }
+    a.card .name { font-size: 15px; }
+    a.card .sha { color: #ef4806; font-size: 12px; }
+    a.card .desc { color: #999; font-size: 13px; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <h1>Build archive</h1>
+  <p class="sub">Older iterations kept runnable. Live build is at the project root.</p>
+
+  <a class="card" href="../"><span class="name">★ Current build (main)</span><div class="desc">The latest version — go here first</div></a>
+  <a class="card" href="floor-no-drag/"><span class="name">Floor spawn, no drag</span> <span class="sha">549094c</span><div class="desc">Cat starts on the ground, drag control removed</div></a>
+  <a class="card" href="backdrop/"><span class="name">Backdrop Potion</span> <span class="sha">34b4968</span><div class="desc">Pixel-art background behind the cat</div></a>
+  <a class="card" href="gemini-sprites/"><span class="name">Gemini Cat sprites</span> <span class="sha">544834e</span><div class="desc">Idle / in-motion / squashed sprite states</div></a>
+  <a class="card" href="landscape-stage/"><span class="name">Landscape 16:9 stage</span> <span class="sha">648b9d4</span><div class="desc">Fixed landscape play area, orientation lock dropped</div></a>
+  <a class="card" href="tuning-block/"><span class="name">Physics tuning block</span> <span class="sha">ffb1b9e</span><div class="desc">Horizontal-only tilt with named feel constants</div></a>
+  <a class="card" href="tilt-fixed/"><span class="name">Tilt fixed (radians bug)</span> <span class="sha">2676166</span><div class="desc">degrees() conversion — tilt finally responded</div></a>
+  <a class="card" href="first-sprite/"><span class="name">First sprite</span> <span class="sha">5c05c9d</span><div class="desc">pixelartcat.png, light background, drag + arrow keys</div></a>
+  <a class="card" href="sliding-cat/"><span class="name">Sliding cat</span> <span class="sha">90e40a5</span><div class="desc">Circles replaced by the tilt-driven cat (drawn in code)</div></a>
+  <a class="card" href="circles/"><span class="name">Circles</span> <span class="sha">3509223</span><div class="desc">Circle count grows/shrinks with rotation</div></a>
+</body>
+</html>
