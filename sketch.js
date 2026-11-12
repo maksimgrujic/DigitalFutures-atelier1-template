@@ -21,7 +21,7 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-11-c'; // not drawn on screen any more, but bumped on every
+const BUILD_TAG = '2026-11-11-d'; // not drawn on screen any more, but bumped on every
                                   // deploy so the repo always says which build is live
                                   // (matches index.html ?v=)
 // ======================================================================
@@ -78,8 +78,8 @@ async function setup() {
   colorMode(HSB, 360, 100, 100, 100);
   noSmooth();
   lockGestures();
-  // Minimal permission overlay: pulsing icon, no words on screen.
-  enableSensorMinimal();
+  // Consent overlay: shows the sensor request once, disappears on tap.
+  enableSensorTap('Tap to enable motion sensors');
   if (window.isDesktop) showDesktopQr({ label: '' });
 
   sprites.idle = await loadSprite(IDLE_SPRITE);
