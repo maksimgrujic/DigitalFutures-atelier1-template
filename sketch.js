@@ -21,8 +21,9 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-11-b'; // shown top-left; bump on every deploy so we can see
-                                  // exactly which build a phone is running (matches index.html ?v=)
+const BUILD_TAG = '2026-11-11-c'; // not drawn on screen any more, but bumped on every
+                                  // deploy so the repo always says which build is live
+                                  // (matches index.html ?v=)
 // ======================================================================
 
 const IDLE_SPRITE = 'Gemini Cat.png';
@@ -34,7 +35,6 @@ let backdrop = null;
 
 let sprites = { idle: null, motion: null, squash: null };
 let cat = null;
-let hint = '';
 
 let baseX = null;
 let baseY = null;
@@ -78,15 +78,15 @@ async function setup() {
   colorMode(HSB, 360, 100, 100, 100);
   noSmooth();
   lockGestures();
-  enableSensorTap('Tap to enable motion sensors');
-  if (window.isDesktop) showDesktopQr({ label: 'Scan to test on your phone' });
+  // Minimal permission overlay: pulsing icon, no words on screen.
+  enableSensorMinimal();
+  if (window.isDesktop) showDesktopQr({ label: '' });
 
   sprites.idle = await loadSprite(IDLE_SPRITE);
   sprites.motion = await loadSprite(MOTION_SPRITE);
   sprites.squash = await loadSprite(SQUASH_SPRITE);
   backdrop = await loadSprite(BACKDROP_SPRITE);
   makeCat();
-  updateHint();
 }
 
 // Landscape lock. orientation.lock() only sticks while fullscreen, and Chrome
@@ -147,17 +147,6 @@ function windowResized() {
   if (gotData) {
     baseX = degrees(rotationX);
     baseY = degrees(rotationY);
-  }
-  updateHint();
-}
-
-function updateHint() {
-  if (width < height && !window.isDesktop) {
-    hint = 'rotate your phone sideways for full screen — tap to re-center';
-  } else if (window.isDesktop) {
-    hint = 'use the arrow keys';
-  } else {
-    hint = 'tilt to slide — tap to re-center';
   }
 }
 
@@ -330,59 +319,50 @@ function flipButtonRect(s) {
   return { x: s.x + s.w - 106, y: s.y + 8, w: 98, h: 30 };
 }
 
-function drawHud(s) {
+// The only direction cue on screen: a drawn arrow (no words) showing which
+// way a tilt pushes the cat.
+function drawDirArrow(s) {
+  const dir = tiltDir();
+  const cx = s.x + 46;
+  const cy = s.y + 26;
+  const half = 26;
+  const head = 16;
+
+  stroke(0, 0, 95);
+  strokeWeight(5);
+  line(cx - dir * half, cy, cx + dir * half, cy);
+
   noStroke();
-  textAlign(CENTER, TOP);
+  fill(0, 0, 95);
+  const tip = cx + dir * half;
+  triangle(tip, cy, tip - dir * head, cy - head * 0.7, tip - dir * head, cy + head * 0.7);
+}
 
-  fill(0, 0, 70);
-  textSize(11);
-  text('build ' + BUILD_TAG, s.x + s.w / 2, s.y + 6);
+function drawHud(s) {
+  drawDirArrow(s);
+  drawFlipButton(s);
+}
 
-  textSize(26);
-  if (!window.sensorsEnabled) {
-    fill(0, 0, 92);
-    text('tap to enable motion', s.x + s.w / 2, s.y + 22);
-  } else if (!gotData) {
-    fill(0, 85, 75);
-    textSize(18);
-    text(
-      'waiting for sensor data…\nif this never changes, enable\nMotion & Orientation for this site',
-      s.x + s.w / 2,
-      s.y + 22
-    );
-  } else {
-    fill(0, 0, 92);
-    text(
-      'tilt ' + axisInUse() + '  ' + nf(tiltDelta(), 1, 1) + '\u00B0' +
-        '   dir ' + (tiltDir() > 0 ? '\u2192' : '\u2190'),
-      s.x + s.w / 2,
-      s.y + 22
-    );
-    fill(0, 0, 75);
-    textSize(12);
-    text(
-      '\u03B2 ' + nf(rxDeg, 1, 1) + '\u00B0   \u03B3 ' + nf(ryDeg, 1, 1) + '\u00B0   ' +
-        (screen.orientation ? screen.orientation.type : 'n/a') +
-        (width > height ? '  landscape' : '  portrait'),
-      s.x + s.w / 2,
-      s.y + 56
-    );
-    text('tap FLIP (top right) to reverse direction', s.x + s.w / 2, s.y + 74);
+// Swap button drawn as two opposed arrows — no words anywhere on screen.
+function drawFlipButton(s) {
+  const b = flipButtonRect(s);
+  const cx = b.x + b.w / 2;
+  const half = 26;
+  const head = 8;
 
-    const b = flipButtonRect(s);
-    fill(0, 0, 20, 60);
-    rect(b.x, b.y, b.w, b.h, 8);
-    fill(0, 0, 95);
-    textAlign(CENTER, CENTER);
-    textSize(13);
-    text('flip dir \u21C4', b.x + b.w / 2, b.y + b.h / 2);
-    textAlign(CENTER, TOP);
+  noStroke();
+  fill(0, 0, 20, 60);
+  rect(b.x, b.y, b.w, b.h, 8);
+
+  stroke(0, 0, 95);
+  strokeWeight(2.5);
+  for (const dir of [1, -1]) {
+    const y = b.y + (dir > 0 ? 11 : 19);
+    line(cx - dir * half, y, cx + dir * half, y);
+    const tip = cx + dir * half;
+    line(tip, y, tip - dir * head, y - 5);
+    line(tip, y, tip - dir * head, y + 5);
   }
-
-  fill(0, 0, 85);
-  textAlign(CENTER, BOTTOM);
-  textSize(14);
-  text(hint, s.x + s.w / 2, s.y + s.h - 10);
 }
 
 function mousePressed() {
