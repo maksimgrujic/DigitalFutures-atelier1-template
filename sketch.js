@@ -21,14 +21,16 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-11-d'; // not drawn on screen any more, but bumped on every
+const BUILD_TAG = '2026-11-11-e'; // not drawn on screen any more, but bumped on every
                                   // deploy so the repo always says which build is live
                                   // (matches index.html ?v=)
 // ======================================================================
 
-const IDLE_SPRITE = 'Gemini Cat.png';
-const MOTION_SPRITE = 'Gemini Cat (In Motion).png';
-const SQUASH_SPRITE = 'Gemini Cat (Squashed).png';
+const SHEET_SPRITE = 'catpotionsprite.png';
+// The sheet is one strip of three equal cells, and every frame's artwork sits
+// at the same offset inside its cell — so one crop rect pulls out all three.
+const SHEET_CELL_W = 48;
+const SHEET_FRAME = { x: 8, y: 8, w: 32, h: 48 };
 const BACKDROP_SPRITE = 'Backdrop Potion.png';
 
 let backdrop = null;
@@ -82,9 +84,10 @@ async function setup() {
   enableSensorTap('Tap to enable motion sensors');
   if (window.isDesktop) showDesktopQr({ label: '' });
 
-  sprites.idle = await loadSprite(IDLE_SPRITE);
-  sprites.motion = await loadSprite(MOTION_SPRITE);
-  sprites.squash = await loadSprite(SQUASH_SPRITE);
+  const sheet = await loadSprite(SHEET_SPRITE);
+  sprites.idle = sheetFrame(sheet, 0);   // frame 1: base state
+  sprites.motion = sheetFrame(sheet, 1); // frame 2: in motion
+  sprites.squash = sheetFrame(sheet, 2); // frame 3: contact with the wall
   backdrop = await loadSprite(BACKDROP_SPRITE);
   makeCat();
 }
@@ -109,6 +112,13 @@ async function loadSprite(name) {
   } catch (e) {
     return null;
   }
+}
+
+// Slice frame i (0-based) out of the sprite sheet as its own image.
+function sheetFrame(sheet, i) {
+  if (!sheet) return null;
+  const f = SHEET_FRAME;
+  return sheet.get(f.x + i * SHEET_CELL_W, f.y, f.w, f.h);
 }
 
 function stageRect() {
