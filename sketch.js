@@ -21,12 +21,12 @@ const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no 
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-11-e'; // not drawn on screen any more, but bumped on every
+const BUILD_TAG = '2026-11-11-f'; // not drawn on screen any more, but bumped on every
                                   // deploy so the repo always says which build is live
                                   // (matches index.html ?v=)
 // ======================================================================
 
-const SHEET_SPRITE = 'catpotionsprite.png';
+const SHEET_SPRITE = 'catpotionspritefixed.png';
 // The sheet is one strip of three equal cells, and every frame's artwork sits
 // at the same offset inside its cell — so one crop rect pulls out all three.
 const SHEET_CELL_W = 48;

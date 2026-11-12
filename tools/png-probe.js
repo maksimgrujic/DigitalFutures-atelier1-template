@@ -79,3 +79,26 @@ for (let y = 0; y < h; y++) {
   rows.push(n);
 }
 console.log('first/last opaque row:', rows.findIndex((n) => n > 0), rows.map((n, i) => [n, i]).filter(([n]) => n > 0).pop());
+
+// Per-frame bounding box: proves no artwork strays outside the crop rect.
+const CELL = 48, CROP = { x: 8, y: 8, w: 32, h: 48 };
+for (let f = 0; f < 3; f++) {
+  const x0 = f * CELL;
+  let minX = 1e9, maxX = -1, minY = 1e9, maxY = -1, stray = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = x0; x < x0 + CELL; x++) {
+      if (alphaAt(x, y) <= 8) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      const inCrop = x >= x0 + CROP.x && x < x0 + CROP.x + CROP.w && y >= CROP.y && y < CROP.y + CROP.h;
+      if (!inCrop) stray++;
+    }
+  }
+  console.log(
+    `frame ${f + 1} bbox x=${minX - x0}..${maxX - x0} y=${minY}..${maxY}` +
+    `  crop-local x=${CROP.x}..${CROP.x + CROP.w - 1} y=${CROP.y}..${CROP.y + CROP.h - 1}` +
+    (stray ? `  ** ${stray} pixels OUTSIDE CROP **` : '  all inside crop')
+  );
+}
