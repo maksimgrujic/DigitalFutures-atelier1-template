@@ -32,7 +32,7 @@ const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscap
 const FLOOR_FRACTION = 0.865;    // floor line as a fraction of stage height — the owl lands
                                  // on the green band's top edge and rests there
 const ANIM_FPS = 8;              // wing-flap loop speed — all 3 frames cycle constantly
-const BUILD_TAG = '2026-11-25-p2-c'; // bumped on every deploy (matches index.html ?v=)
+const BUILD_TAG = '2026-11-25-p2-d'; // bumped on every deploy (matches index.html ?v=)
 // ======================================================================
 
 const SHEET_SPRITE = 'owllibrarysprite.png';
@@ -254,6 +254,12 @@ function deviceShaken() {
 function axisInUse() {
   if (TILT_AXIS === 'Y' || TILT_AXIS === 'X') return TILT_AXIS;
   return width > height ? 'Y' : 'X';
+}
+
+// Delta, in degrees, from the neutral pose along the screen's horizontal axis.
+function tiltDelta() {
+  if (baseX === null) return 0;
+  return axisInUse() === 'Y' ? normDeg(rxDeg - baseX) : normDeg(ryDeg - baseY);
 }
 
 // Horizontal only: side-to-side tilt, same feel as the cat but capped slower.
