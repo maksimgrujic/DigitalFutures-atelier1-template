@@ -24,7 +24,7 @@ const FLOOR_FRACTION = 0.865;    // floor line as a fraction of stage height fro
                                  // edge of the green band), nudged slightly below the art line
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-25-b'; // not drawn on screen any more, but bumped on every
+const BUILD_TAG = '2026-11-25-c'; // not drawn on screen any more, but bumped on every
                                   // deploy so the repo always says which build is live
                                   // (matches index.html ?v=)
 // ======================================================================
@@ -34,7 +34,7 @@ const SHEET_SPRITE = 'catpotionspritefixed.png';
 // at the same offset inside its cell — so one crop rect pulls out all three.
 const SHEET_CELL_W = 48;
 const SHEET_FRAME = { x: 8, y: 8, w: 32, h: 48 };
-const BACKDROP_SPRITE = 'potionroombackdrop.png';
+const BACKDROP_SPRITE = 'potionroombackdropv0.png';
 
 let backdrop = null;
 
