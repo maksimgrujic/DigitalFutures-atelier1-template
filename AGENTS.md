@@ -17,7 +17,12 @@ Any change to this sketch gets the full delivery pipeline automatically — do n
      `& "C:\Program Files\nodejs\npx.cmd" --yes qrcode -o "C:\Users\maksi\AppData\Local\Temp\opencode\catqrplaytest2version0.png" -w 700 "https://maksimgrujic.github.io/DigitalFutures-atelier1-template/"`
    - `playtest2/` owl program → `owlplaytest2version0.png`:
      `& "C:\Program Files\nodejs\npx.cmd" --yes qrcode -o "C:\Users\maksi\AppData\Local\Temp\opencode\owlplaytest2version0.png" -w 700 "https://maksimgrujic.github.io/DigitalFutures-atelier1-template/playtest2/"`
-   followed by `Start-Process` on that PNG.
+   - `catv1/` cat v1 → `catqrplaytest2version1.png`:
+     `& "C:\Program Files\nodejs\npx.cmd" --yes qrcode -o "C:\Users\maksi\AppData\Local\Temp\opencode\catqrplaytest2version1.png" -w 700 "https://maksimgrujic.github.io/DigitalFutures-atelier1-template/catv1/"`
+   - `owlv1/` owl v1 → `owlplaytest2version1.png`:
+     `& "C:\Program Files\nodejs\npx.cmd" --yes qrcode -o "C:\Users\maksi\AppData\Local\Temp\opencode\owlplaytest2version1.png" -w 700 "https://maksimgrujic.github.io/DigitalFutures-atelier1-template/owlv1/"`
+   followed by `Start-Process` on that PNG. If the write fails with `UNKNOWN: open`,
+   a Photos window is holding the old PNG — close that window, then regenerate.
    (Use `npx.cmd`, not `npx` — PowerShell execution policy blocks `npx.ps1`.)
 5. Tell the user to reload/close the old tab on the phone (Pages caches ~10 min).
 
@@ -32,6 +37,25 @@ Any change to this sketch gets the full delivery pipeline automatically — do n
 - Its QR is `owlplaytest2version0.png` → `…/playtest2/` (see step 4).
 - Separate persistence: the owl stores direction flips under `owlTiltDir`,
   the cat under `catTiltDir` — they must never share a key.
+
+## Playtest versions (v0 vs v1)
+Four independent programs, compared side by side at playtests:
+
+| Program | Folder | URL path | QR file | localStorage key |
+|---|---|---|---|---|
+| cat v0 | repo root | `/` | `catqrplaytest2version0.png` | `catTiltDir` |
+| owl v0 | `playtest2/` | `/playtest2/` | `owlplaytest2version0.png` | `owlTiltDir` |
+| cat v1 | `catv1/` | `/catv1/` | `catqrplaytest2version1.png` | `catV1TiltDir` |
+| owl v1 | `owlv1/` | `/owlv1/` | `owlplaytest2version1.png` | `owlV1TiltDir` |
+
+- **v0 is frozen**: when the user asks for a v1 change, never touch the root or
+  `playtest2/` files. Each v1 is a full copy (own `index.html`, `sketch.js`,
+  assets) of its v0, differing only in the knobs named in its header comment.
+- cat v1: `ACCELERATION` 0.20 (v0 0.16) — ~25% faster slide.
+  owl v1: `SHAKE_ACCEL` 15 (v0 5) — needs a much harder shake to climb.
+- Same pipeline per folder: `node --check <folder>/sketch.js`, bump that
+  folder's `BUILD_TAG` and `?v=` together, then verify **all four** live
+  build tags so an edit to one can't silently change another.
 
 ## Notes
 - `index.html` loads p5.js **2.x** and p5-phone — write p5 2 code: `async setup()` + `await loadImage()`,
