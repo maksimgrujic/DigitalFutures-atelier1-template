@@ -16,12 +16,15 @@ const STOP_SPEED = 0.02;         // below this speed the cat snaps to a full sto
 const WALL_BOUNCE = 0;           // 0 = sticks to the wall, 0.5 = soft bounce, 1 = full bounce
 const KEY_PUSH = 1;              // how hard the arrow keys push
 const START_GAP = 12;            // px above the floor where the cat spawns
-const SPRITE_SIZE = 0.28;        // cat width as a fraction of the smaller stage side
+const SPRITE_SIZE = 0.24;        // cat width as a fraction of the smaller stage side
 const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
+const FLOOR_FRACTION = 0.844;    // floor line as a fraction of stage height from the top —
+                                 // measured from the backdrop art (y=152/180), the top edge
+                                 // of the green band, so the cat stands ON the drawn floor
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-11-g'; // not drawn on screen any more, but bumped on every
+const BUILD_TAG = '2026-11-25-a'; // not drawn on screen any more, but bumped on every
                                   // deploy so the repo always says which build is live
                                   // (matches index.html ?v=)
 // ======================================================================
@@ -131,13 +134,20 @@ function stageRect() {
   return { x: (width - w) / 2, y: (height - h) / 2, w: w, h: h };
 }
 
+// The floor line, in canvas px: the top edge of the green band drawn in the
+// backdrop. Everything that rests on the floor (spawn, wall clamp, resize
+// clamp) goes through here so they can never drift apart.
+function floorY(s) {
+  return s.y + s.h * FLOOR_FRACTION;
+}
+
 function makeCat() {
   const s = stageRect();
   const size = min(s.w, s.h) * SPRITE_SIZE;
   const aspect = sprites.idle ? sprites.idle.height / sprites.idle.width : 1;
   cat = {
     x: s.x + s.w / 2,
-    y: s.y + s.h - (size * aspect) / 2 - START_GAP,
+    y: floorY(s) - (size * aspect) / 2 - START_GAP,
     vx: 0,
     vy: 0,
     w: size,
@@ -153,7 +163,7 @@ function windowResized() {
   cat.w = min(s.w, s.h) * SPRITE_SIZE;
   cat.h = cat.w * (sprites.idle ? sprites.idle.height / sprites.idle.width : 1);
   cat.x = constrain(cat.x, s.x + cat.w / 2, s.x + s.w - cat.w / 2);
-  cat.y = constrain(cat.y, s.y + cat.h / 2, s.y + s.h - cat.h / 2);
+  cat.y = constrain(cat.y, s.y + cat.h / 2, floorY(s) - cat.h / 2);
   if (gotData) {
     baseX = degrees(rotationX);
     baseY = degrees(rotationY);
@@ -259,8 +269,8 @@ function stopAtWalls(s) {
     cat.y = s.y + hh;
     cat.vy = -cat.vy * WALL_BOUNCE;
     cat.touchWall = 'top';
-  } else if (cat.y > s.y + s.h - hh) {
-    cat.y = s.y + s.h - hh;
+  } else if (cat.y > floorY(s) - hh) {
+    cat.y = floorY(s) - hh;
     cat.vy = -cat.vy * WALL_BOUNCE;
     cat.touchWall = 'bottom';
   }
