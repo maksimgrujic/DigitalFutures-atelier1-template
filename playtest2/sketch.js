@@ -1,34 +1,38 @@
 // ======================================================================
 //  TUNE THE FEEL HERE  —  library owl (playtest2)
-//  A flying character: no floor contact, no gravity. The owl holds station
-//  when the phone is level and flies toward whichever way you rotate it.
+//  Tilt side to side to drift left/right (slow, gliding). Shake the phone to
+//  climb; stop shaking and the owl floats gently back down to the floor.
 // ======================================================================
 const TILT_AXIS = 'auto';        // 'auto' = measure across whichever phone axis is
                                  //       horizontal on screen, or force 'Y' / 'X'
 const TILT_DIRECTION_Y = -1;     // horizontal push sign when the Y axis lies on screen
 const TILT_DIRECTION_X = 1;      // horizontal push sign when the X axis lies on screen
-const TILT_DIRECTION_V = 1;      // vertical push sign — if the owl climbs when the
-                                 //       phone's top edge tips away, flip this to -1
 const DIR_VERSION = 1;           // bump when the defaults above change, so stale
                                  //       saved flips from older builds are ignored
-const TILT_SENSITIVITY = 1 / 30; // ramp-up rate once past the deadzone (bigger = snappier)
-const TILT_DEADZONE = 25;        // degrees of rotation IGNORED — the phone must be turned
-                                 // well past level ("fully flipped") before the owl moves;
-                                 // this is what makes small wrist tilts do nothing
-const MAX_FORCE = 1.6;           // cap on push per frame, keeps the owl from teleporting
+const TILT_SENSITIVITY = 1 / 26; // how hard each degree of side-tilt pushes (same as the cat)
+const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
+const MAX_FORCE = 1.0;           // horizontal push cap — below the cat's 1.6, so the owl
+                                 // drifts along noticeably slower than the cat slides
 const ACCELERATION = 0.16;       // how fast push becomes speed (bigger = more instant)
-const FRICTION = 0.96;           // air drag: bleeds speed so a level phone = a steady hover
-const STOP_SPEED = 0.05;         // below this the owl snaps to a full stop
+const FRICTION = 0.96;           // horizontal drag: tilt and glide, level out and settle
+const STOP_SPEED = 0.05;         // below this speed the owl snaps to a full stop
+const SHAKE_ACCEL = 5;           // m/s² before a shake counts — a firm shake, not a nudge
+                                 //       (resting reads ~0, normal movement ~1-3)
+const SHAKE_HOLD = 10;           // frames of lift kept alive after each shake pulse, so a
+                                 //       shake's back-and-forth reads as steady climbing
+const LIFT = 0.35;               // upward push per frame while shaking
+const MAX_CLIMB = 3;             // terminal climb speed (px/frame)
+const GRAVITY = 0.06;            // gentle pull down once the shaking stops
+const MAX_FALL = 1.3;            // terminal descent speed — a slow, floaty fall
 const WALL_BOUNCE = 0;           // 0 = rests against the boundary, 0.5 = soft bounce
 const KEY_PUSH = 1;              // how hard the arrow keys push
 const SPRITE_SIZE = 0.18;        // owl width as a fraction of the smaller stage side
 const SPRITE_LEAN = 0.015;       // how much the owl banks while moving
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
-const FLOOR_FRACTION = 0.865;    // floor line as a fraction of stage height — the top of
-                                 // the green band in the backdrop; the owl can descend
-                                 // to it but never into it, and it anchors the shadow
+const FLOOR_FRACTION = 0.865;    // floor line as a fraction of stage height — the owl lands
+                                 // on the green band's top edge and rests there
 const ANIM_FPS = 8;              // wing-flap loop speed — all 3 frames cycle constantly
-const BUILD_TAG = '2026-11-25-p2-b'; // bumped on every deploy (matches index.html ?v=)
+const BUILD_TAG = '2026-11-25-p2-c'; // bumped on every deploy (matches index.html ?v=)
 // ======================================================================
 
 const SHEET_SPRITE = 'owllibrarysprite.png';
@@ -47,6 +51,7 @@ let baseY = null;
 let gotData = false;
 let rxDeg = 0;
 let ryDeg = 0;
+let shakeTimer = 0; // frames of lift left after the last shake pulse
 // One direction setting per measured axis, for the HORIZONTAL push only. Stored
 // under its own key so the owl's flips can never touch the cat's, and a saved
 // flip is only honoured at the current DIR_VERSION.
@@ -87,6 +92,7 @@ async function setup() {
   lockGestures();
   // Consent overlay: shows the sensor request once, disappears on tap.
   enableSensorTap('Tap to enable motion sensors');
+  setShakeThreshold(SHAKE_ACCEL); // p5's deviceShaken() uses the same feel knob
   if (window.isDesktop) showDesktopQr({ label: '' });
 
   const sheet = await loadSprite(SHEET_SPRITE);
@@ -147,7 +153,7 @@ function makeOwl() {
   const aspect = SHEET_FRAME.h / SHEET_FRAME.w; // 34 / 40 — wider than tall
   owl = {
     x: s.x + s.w / 2,
-    y: s.y + s.h * 0.45, // start mid-air, the owl never spawns on the floor
+    y: s.y + s.h * 0.45, // start mid-air — it drifts down to the floor on its own
     vx: 0,
     vy: 0,
     w: size,
@@ -188,15 +194,21 @@ function draw() {
   rxDeg = degrees(rotationX);
   ryDeg = degrees(rotationY);
   trackSensorData();
+  trackShake();
 
   const t = readInput();
   owl.vx = (owl.vx + t.x * ACCELERATION) * FRICTION;
-  owl.vy = (owl.vy + t.y * ACCELERATION) * FRICTION;
   if (abs(owl.vx) < STOP_SPEED) owl.vx = 0;
-  if (abs(owl.vy) < STOP_SPEED) owl.vy = 0;
-
   owl.x += owl.vx;
+
+  // Up = shaking, down = a slow float back to the floor.
+  if (shakeTimer > 0) shakeTimer--;
+  if (shakeTimer > 0) owl.vy -= LIFT;
+  else owl.vy += GRAVITY;
+  if (keyIsDown(DOWN_ARROW)) owl.vy += 0.15; // desktop: speed up the descent
+  owl.vy = constrain(owl.vy, -MAX_CLIMB, MAX_FALL);
   owl.y += owl.vy;
+
   stopAtBounds(s);
 
   if (abs(owl.vx) > 0.3) owl.dir = owl.vx > 0 ? 1 : -1;
@@ -216,6 +228,27 @@ function trackSensorData() {
   }
 }
 
+// Shake = climb. A firm shake of the phone keeps the lift timer topped up and
+// the owl rises; the moment shaking stops the timer runs out and gravity takes
+// over. Reads p5's own acceleration globals (user acceleration, no gravity).
+function trackShake() {
+  if (keyIsDown(UP_ARROW)) {
+    shakeTimer = SHAKE_HOLD; // desktop stand-in for shaking
+    return;
+  }
+  if (!window.sensorsEnabled) return;
+  const ax = accelerationX || 0;
+  const ay = accelerationY || 0;
+  const az = accelerationZ || 0;
+  if (sqrt(ax * ax + ay * ay + az * az) > SHAKE_ACCEL) shakeTimer = SHAKE_HOLD;
+}
+
+// p5-phone also fires this callback on its own shake detection — same timer,
+// so either path keeps the owl climbing.
+function deviceShaken() {
+  if (window.sensorsEnabled) shakeTimer = SHAKE_HOLD;
+}
+
 // Landscape: the phone's long (Y) axis lies horizontal on screen.
 // Portrait: the phone's short (X) axis lies horizontal on screen.
 function axisInUse() {
@@ -223,31 +256,20 @@ function axisInUse() {
   return width > height ? 'Y' : 'X';
 }
 
-// Both phone axes drive flight: the one lying horizontal steers left/right,
-// the other steers up/down. Nothing counts until the rotation passes the big
-// deadzone — you flip the phone hard to move, level it to hover. Force ramps
-// up with how far past the threshold you go, so a full flip = full speed.
+// Horizontal only: side-to-side tilt, same feel as the cat but capped slower.
+// Vertical motion is shake-driven (see trackShake), never tilt-driven.
 function readInput() {
   let x = 0;
-  let y = 0;
 
-  if (baseX !== null) {
-    const horizontal = axisInUse() === 'Y' ? normDeg(rxDeg - baseX) : normDeg(ryDeg - baseY);
-    const vertical = axisInUse() === 'Y' ? normDeg(ryDeg - baseY) : normDeg(rxDeg - baseX);
-
-    const hx = abs(horizontal) - TILT_DEADZONE;
-    if (hx > 0) x += hx * TILT_SENSITIVITY * (horizontal > 0 ? 1 : -1) * tiltDir();
-
-    const hy = abs(vertical) - TILT_DEADZONE;
-    if (hy > 0) y += hy * TILT_SENSITIVITY * (vertical > 0 ? 1 : -1) * TILT_DIRECTION_V;
+  const d = tiltDelta();
+  if (abs(d) > TILT_DEADZONE) {
+    x += d * TILT_SENSITIVITY * tiltDir();
   }
 
   if (keyIsDown(LEFT_ARROW)) x -= KEY_PUSH;
   if (keyIsDown(RIGHT_ARROW)) x += KEY_PUSH;
-  if (keyIsDown(UP_ARROW)) y -= KEY_PUSH;
-  if (keyIsDown(DOWN_ARROW)) y += KEY_PUSH;
 
-  return { x: constrain(x, -MAX_FORCE, MAX_FORCE), y: constrain(y, -MAX_FORCE, MAX_FORCE) };
+  return { x: constrain(x, -MAX_FORCE, MAX_FORCE) };
 }
 
 function normDeg(d) {
@@ -275,8 +297,8 @@ function stopAtBounds(s) {
   }
 }
 
-// Wordless 2D tilt indicator: crosshair at the top of the stage with a dot
-// showing the push currently being applied (tilt or arrow keys).
+// Wordless 2D gauge: horizontal dot position = side-tilt push, vertical = the
+// owl's climb/fall (shaking flicks it up, gravity drifts it back down).
 function drawTiltGauge(s, t) {
   if (baseX === null) return;
   const cx = s.x + s.w / 2;
@@ -291,11 +313,9 @@ function drawTiltGauge(s, t) {
 
   noStroke();
   fill(0, 0, 95, 85);
-  circle(
-    cx + (t.x / MAX_FORCE) * span,
-    cy + (t.y / MAX_FORCE) * span,
-    10
-  );
+  const ox = (t.x / MAX_FORCE) * span;
+  const oy = constrain(owl.vy / MAX_CLIMB, -1, 1) * span; // negative vy = rising = up
+  circle(cx + ox, cy + oy, 10);
 }
 
 // The owl's shadow on the floor: shrinks and fades the higher it flies, so
