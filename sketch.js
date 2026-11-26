@@ -7,24 +7,24 @@ const TILT_DIRECTION_Y = -1;     // starting direction in landscape (phone Y axi
 const TILT_DIRECTION_X = 1;      // starting direction in portrait (phone X axis)
 const DIR_VERSION = 3;           // bump this whenever the two defaults above change,
                                  // so stale saved flips from older builds are ignored
-const TILT_SENSITIVITY = 1 / 20; // how hard each degree of tilt pushes (bigger = snappier)
+const TILT_SENSITIVITY = 1 / 26; // how hard each degree of tilt pushes (bigger = snappier)
 const TILT_DEADZONE = 4;         // degrees of tilt ignored, stops drift when holding still
-const MAX_FORCE = 2.5;           // cap on push per frame, keeps the cat from teleporting
+const MAX_FORCE = 1.6;           // cap on push per frame, keeps the cat from teleporting
 const ACCELERATION = 0.16;       // how fast push becomes speed (bigger = more instant)
-const FRICTION = 0.97;           // 0.8 = stops fast / sticky floor, 0.99 = slippery ice
+const FRICTION = 0.96;           // 0.8 = stops fast / sticky floor, 0.99 = slippery ice
 const STOP_SPEED = 0.02;         // below this speed the cat snaps to a full stop
 const WALL_BOUNCE = 0;           // 0 = sticks to the wall, 0.5 = soft bounce, 1 = full bounce
 const KEY_PUSH = 1;              // how hard the arrow keys push
 const START_GAP = 12;            // px above the floor where the cat spawns
-const SPRITE_SIZE = 0.24;        // cat width as a fraction of the smaller stage side
+const SPRITE_SIZE = 0.18;        // cat width as a fraction of the smaller stage side
 const SPRITE_LEAN = 0.015;       // how much the cat leans while moving (0 = no lean)
 const STAGE_ASPECT = 16 / 9;     // the play area is always this shape (landscape)
-const FLOOR_FRACTION = 0.844;    // floor line as a fraction of stage height from the top —
-                                 // measured from the backdrop art (y=152/180), the top edge
-                                 // of the green band, so the cat stands ON the drawn floor
+const FLOOR_FRACTION = 0.865;    // floor line as a fraction of stage height from the top —
+                                 // starts from the backdrop art (y=152/180 = 0.844, the top
+                                 // edge of the green band), nudged slightly below the art line
 const MOTION_THRESHOLD = 1.0;    // speed (px/frame) where idle switches to the In Motion sprite
 const WALL_TOUCH_SPEED = 1.0;    // speed below this while at a wall shows the Squashed sprite
-const BUILD_TAG = '2026-11-25-a'; // not drawn on screen any more, but bumped on every
+const BUILD_TAG = '2026-11-25-b'; // not drawn on screen any more, but bumped on every
                                   // deploy so the repo always says which build is live
                                   // (matches index.html ?v=)
 // ======================================================================
