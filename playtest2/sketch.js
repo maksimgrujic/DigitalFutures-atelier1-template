@@ -11,8 +11,10 @@ const TILT_DIRECTION_V = 1;      // vertical push sign — if the owl climbs whe
                                  //       phone's top edge tips away, flip this to -1
 const DIR_VERSION = 1;           // bump when the defaults above change, so stale
                                  //       saved flips from older builds are ignored
-const TILT_SENSITIVITY = 1 / 26; // how hard each degree of tilt pushes
-const TILT_DEADZONE = 4;         // degrees of tilt ignored — this is what lets the owl hover
+const TILT_SENSITIVITY = 1 / 30; // ramp-up rate once past the deadzone (bigger = snappier)
+const TILT_DEADZONE = 25;        // degrees of rotation IGNORED — the phone must be turned
+                                 // well past level ("fully flipped") before the owl moves;
+                                 // this is what makes small wrist tilts do nothing
 const MAX_FORCE = 1.6;           // cap on push per frame, keeps the owl from teleporting
 const ACCELERATION = 0.16;       // how fast push becomes speed (bigger = more instant)
 const FRICTION = 0.96;           // air drag: bleeds speed so a level phone = a steady hover
@@ -26,7 +28,7 @@ const FLOOR_FRACTION = 0.865;    // floor line as a fraction of stage height —
                                  // the green band in the backdrop; the owl can descend
                                  // to it but never into it, and it anchors the shadow
 const ANIM_FPS = 8;              // wing-flap loop speed — all 3 frames cycle constantly
-const BUILD_TAG = '2026-11-25-p2-a'; // bumped on every deploy (matches index.html ?v=)
+const BUILD_TAG = '2026-11-25-p2-b'; // bumped on every deploy (matches index.html ?v=)
 // ======================================================================
 
 const SHEET_SPRITE = 'owllibrarysprite.png';
@@ -222,8 +224,9 @@ function axisInUse() {
 }
 
 // Both phone axes drive flight: the one lying horizontal steers left/right,
-// the other steers up/down. Each is a delta from the neutral pose captured
-// when the sensors first reported (re-centred by tapping).
+// the other steers up/down. Nothing counts until the rotation passes the big
+// deadzone — you flip the phone hard to move, level it to hover. Force ramps
+// up with how far past the threshold you go, so a full flip = full speed.
 function readInput() {
   let x = 0;
   let y = 0;
@@ -231,12 +234,12 @@ function readInput() {
   if (baseX !== null) {
     const horizontal = axisInUse() === 'Y' ? normDeg(rxDeg - baseX) : normDeg(ryDeg - baseY);
     const vertical = axisInUse() === 'Y' ? normDeg(ryDeg - baseY) : normDeg(rxDeg - baseX);
-    if (abs(horizontal) > TILT_DEADZONE) {
-      x += horizontal * TILT_SENSITIVITY * tiltDir();
-    }
-    if (abs(vertical) > TILT_DEADZONE) {
-      y += vertical * TILT_SENSITIVITY * TILT_DIRECTION_V;
-    }
+
+    const hx = abs(horizontal) - TILT_DEADZONE;
+    if (hx > 0) x += hx * TILT_SENSITIVITY * (horizontal > 0 ? 1 : -1) * tiltDir();
+
+    const hy = abs(vertical) - TILT_DEADZONE;
+    if (hy > 0) y += hy * TILT_SENSITIVITY * (vertical > 0 ? 1 : -1) * TILT_DIRECTION_V;
   }
 
   if (keyIsDown(LEFT_ARROW)) x -= KEY_PUSH;
